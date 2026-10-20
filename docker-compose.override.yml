@@ -1,0 +1,21 @@
+# Development override — used automatically by plain `docker compose up`.
+# For production use: docker compose -f docker-compose.yml up -d
+services:
+  iptv-proxy:
+    build:
+      context: .
+      target: deps
+    command: npm run dev
+    environment:
+      - NODE_ENV=development
+      - LOG_LEVEL=debug
+    volumes:
+      - ./src:/app/src:ro
+      - ./web:/app/web:ro
+      - ./scripts:/app/scripts:ro
+      - ./data:/app/data
+    ports:
+      - "${PORT:-3000}:${PORT:-3000}"
+      - "9229:9229" # node --inspect (tsx watch)
+    read_only: false
+    cap_drop: []

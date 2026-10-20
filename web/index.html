@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#021a09" />
+  <title>Sportsbite IPTV</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <button id="btn-toggle-list" class="btn ghost icon" data-icon="sidebar" title="Hide channel list (L)" aria-label="Hide channel list" aria-expanded="true" aria-controls="sidebar"></button>
+    <div class="brand">
+      <img class="brand-mark" src="/favicon.svg" alt="" width="38" height="38" />
+      <h1>Sportsbite <em>IPTV</em></h1>
+    </div>
+
+    <label class="search">
+      <span class="search-icon" data-icon="search"></span>
+      <input id="search" type="search" placeholder="Search channels" aria-label="Search channels" autocomplete="off" />
+      <kbd aria-hidden="true">/</kbd>
+    </label>
+
+    <div class="topbar-actions">
+      <button id="btn-copy-playlist" class="btn ghost" title="Copy the playlist URL for IPTV players">
+        <span data-icon="copy"></span><span class="hide-sm">Playlist URL</span>
+      </button>
+      <button id="btn-reload" class="btn ghost icon" data-icon="reload" title="Reload channel list" aria-label="Reload channel list"></button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar">
+      <div class="filters">
+        <label class="sr-only" for="group">Group</label>
+        <select id="group"></select>
+        <button id="only-online" class="chip" type="button" aria-pressed="false" title="Only show channels that are online">
+          <span class="dot-live"></span>Online
+        </button>
+      </div>
+      <div id="channels" class="channel-list" role="listbox" aria-label="Channels"></div>
+      <div id="list-status" class="list-status" aria-live="polite"></div>
+    </aside>
+
+    <main class="player-pane">
+      <div class="video-wrap has-overlay" id="video-wrap" tabindex="0" aria-label="Video player. Up and down arrows change channel, F toggles fullscreen, M mutes.">
+        <video id="video" playsinline></video>
+
+        <div class="hud" aria-hidden="true"><span id="hud-name"></span></div>
+        <div id="buffering" class="spinner buffering" hidden role="status" aria-label="Buffering"></div>
+
+        <div id="overlay" class="overlay">
+          <div class="overlay-box">
+            <div id="overlay-spinner" class="spinner" hidden role="status" aria-label="Loading"></div>
+            <img id="overlay-logo" class="overlay-logo" src="/favicon.svg" alt="" width="84" height="84" />
+            <div id="overlay-title">Pick a channel</div>
+            <div id="overlay-detail" class="dim">Choose one from the list, or press ↑ / ↓.</div>
+            <button id="btn-retry" class="btn primary" hidden>Retry</button>
+          </div>
+        </div>
+
+        <div class="controls" id="controls">
+          <button id="btn-play" class="ctl" data-icon="play" title="Play / Pause (space)" aria-label="Play or pause"></button>
+          <button id="btn-prev" class="ctl" data-icon="up" title="Previous channel (↑)" aria-label="Previous channel"></button>
+          <button id="btn-next" class="ctl" data-icon="down" title="Next channel (↓)" aria-label="Next channel"></button>
+          <button id="btn-mute" class="ctl" data-icon="volume" title="Mute (m)" aria-label="Mute"></button>
+          <input id="volume" type="range" min="0" max="1" step="0.05" value="0.9" title="Volume" aria-label="Volume" />
+          <span class="spacer"></span>
+          <select id="level" title="Quality" aria-label="Quality"><option value="-1">Quality: Auto</option></select>
+          <select id="audio" title="Audio track" aria-label="Audio track" hidden><option value="-1">Audio: default</option></select>
+          <select id="subs" title="Subtitles" aria-label="Subtitles" hidden><option value="-1">Subtitles: off</option></select>
+          <button id="btn-fs" class="ctl" data-icon="fullscreen" title="Fullscreen (f)" aria-label="Toggle fullscreen"></button>
+        </div>
+      </div>
+
+      <div class="nowplaying">
+        <div class="np-info">
+          <span id="np-name" class="np-name">Nothing playing</span>
+          <span id="np-badge" class="badge live" hidden>LIVE</span>
+          <span id="np-status" class="dim"></span>
+        </div>
+        <div class="np-actions">
+          <button id="btn-copy-stream" class="btn ghost small" title="Copy this channel's stream URL">
+            <span data-icon="copy"></span><span class="hide-sm">Stream URL</span>
+          </button>
+          <button id="btn-share" class="btn primary small">
+            <span data-icon="share"></span>Share &amp; export
+          </button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Share & export panel -->
+  <div id="share-modal" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="share-title">
+    <div class="modal-box">
+      <div class="modal-head">
+        <h2 id="share-title">Share &amp; export</h2>
+        <div class="modal-head-actions">
+          <button id="btn-rotate" class="btn ghost small" title="Rotate this channel's share token — old links stop working">Regenerate token</button>
+          <button id="btn-close-share" class="btn ghost small icon" data-icon="close" title="Close (Esc)" aria-label="Close"></button>
+        </div>
+      </div>
+      <div class="share-grid">
+        <div class="qr-pane">
+          <div id="qr" class="qr"></div>
+          <div class="dim small-text">Scan to open on phone / TV</div>
+        </div>
+        <div class="rows" id="share-rows"><!-- rows injected by app.js --></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" hidden role="status" aria-live="polite"></div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

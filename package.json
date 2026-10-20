@@ -1,0 +1,46 @@
+{
+  "name": "sportsbite-hls-proxy",
+  "version": "1.0.0",
+  "description": "Self-hosted Sportsbite IPTV web viewer + HLS proxy + dynamic M3U8 playlist generator",
+  "type": "module",
+  "private": true,
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "dev": "npm run build:web && tsx watch --clear-screen=false src/server.ts",
+    "build": "tsc -p tsconfig.build.json && npm run build:web",
+    "build:web": "node scripts/build-web.mjs",
+    "start": "node dist/server.js",
+    "import": "tsx src/cli/import.ts",
+    "check": "tsx src/cli/check.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src web tests scripts",
+    "format": "prettier --write \"src/**/*.ts\" \"web/**/*.ts\" \"tests/**/*.ts\"",
+    "typecheck": "tsc --noEmit",
+    "docker:build": "docker build -t sportsbite-hls-proxy:latest .",
+    "docker:up": "docker compose -f docker-compose.yml up -d",
+    "docker:logs": "docker compose -f docker-compose.yml logs -f",
+    "docker:down": "docker compose -f docker-compose.yml down"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "fastify": "^5.2.0",
+    "pino": "^9.5.0",
+    "undici": "^7.1.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.15.0",
+    "@types/node": "^22.10.0",
+    "esbuild": "^0.24.0",
+    "eslint": "^9.15.0",
+    "eslint-config-prettier": "^9.1.0",
+    "hls.js": "^1.5.13",
+    "prettier": "^3.3.3",
+    "qrcode-generator": "^1.4.4",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "typescript-eslint": "^8.15.0",
+    "vitest": "^2.1.8"
+  }
+}

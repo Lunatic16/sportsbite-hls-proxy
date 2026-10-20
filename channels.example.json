@@ -1,0 +1,34 @@
+[
+  {
+    "id": "apple-bipbop-advanced",
+    "name": "Apple BipBop Advanced (test stream)",
+    "group": "Test",
+    "tvgId": "apple-bipbop",
+    "resolver": "static",
+    "url": "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8",
+    "options": {
+      "note": "fMP4 master playlist with EXT-X-MEDIA audio + closed-caption renditions - exercises the whole proxy path"
+    }
+  },
+  {
+    "id": "example-m3u-source",
+    "name": "Example m3u-source channel",
+    "group": "Test",
+    "tvgId": "example-m3u",
+    "resolver": "m3u-source",
+    "options": {
+      "source": "./data/source.m3u",
+      "match": { "tvgId": "example-m3u" },
+      "note": "create data/source.m3u (an #EXTM3U with an EXTINF whose tvg-id is example-m3u) or import a playlist with --as-m3u-source"
+    }
+  },
+  {
+    "id": "247-beinsportsus",
+    "name": "beIN SPORTS USA",
+    "group": "Sports",
+    "logo": "https://raw.githubusercontent.com/tv-logo/tv-logos/refs/heads/main/countries/united-states/bein-sports-us.png",
+    "tvgId": "247-beinsportsus",
+    "resolver": "custom",
+    "options": { "custom": "sportsbite", "sourceId": "247-beinsportsus" }
+  }
+]

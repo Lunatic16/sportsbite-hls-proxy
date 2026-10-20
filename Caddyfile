@@ -1,0 +1,21 @@
+# Caddy reverse proxy for sportsbite-hls-proxy (compose profile: "proxy").
+# Set SITE_ADDRESS to your domain for automatic HTTPS, e.g.:
+#   SITE_ADDRESS=tv.example.com PUBLIC_BASE_URL=https://tv.example.com docker compose --profile proxy up -d
+{$SITE_ADDRESS} {
+	encode zstd gzip
+
+	# Streaming: flush upstream data immediately, no response buffering,
+	# long timeouts so long-lived HLS connections are never cut.
+	reverse_proxy iptv-proxy:3000 {
+		flush_interval -1
+		transport http {
+			response_header_timeout 24h
+			dial_timeout 15s
+		}
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+	}
+}

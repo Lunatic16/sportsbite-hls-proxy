@@ -1,0 +1,70 @@
+services:
+  iptv-proxy:
+    build: .
+    image: sportsbite-hls-proxy:latest
+    container_name: sportsbite-hls-proxy
+    restart: unless-stopped
+    init: true
+    ports:
+      - "${PORT:-3009}:${PORT:-3000}"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      - NODE_ENV=production
+      # ${PORT} in the ports mapping does NOT set PORT inside the container —
+      # it must be set here explicitly or app and mapping listen on different ports.
+      - PORT=${PORT:-3000}
+      - TZ=${TZ:-America/Cayman}
+    volumes:
+      - ./data:/app/data              # channels.json, share tokens, secret persisted here
+      # Optional: bind-mount your own channel list over the generated one
+      # - ./channels.json:/app/data/channels.json:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:${PORT:-3000}/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    # ── optional resource limits ──────────────────────────────────────────
+    # deploy:
+    #   resources:
+    #     limits:
+    #       memory: 1g
+    #       cpus: "2.0"
+
+  # Optional automatic-HTTPS reverse proxy:
+  #   docker compose --profile proxy up -d
+  # Set SITE_ADDRESS (e.g. tv.example.com) and PUBLIC_BASE_URL accordingly.
+  caddy:
+    image: caddy:2-alpine
+    profiles: ["proxy"]
+    container_name: sportsbite-caddy
+    restart: unless-stopped
+    depends_on:
+      - iptv-proxy
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - SITE_ADDRESS=${SITE_ADDRESS:-:8080}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:
