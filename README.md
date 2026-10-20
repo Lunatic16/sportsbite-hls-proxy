@@ -11,13 +11,11 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](../../pulls)
 
-TypeScript · Node.js 20+ · Fastify · undici · hls.js
+[✨ Highlights](#-highlights) · [🚀 Quick start](#-quick-start) · [📺 IPTV players](#-using-it-in-iptv-players) · [📥 Adding channels](#-adding-channels) · [⚙️ Configuration](#-configuration) · [🔗 Share panel](#-share-and-export-panel) · [🔌 API](#-api) · [🔒 Security](#-security-notes) · [🩺 Troubleshooting](#-troubleshooting) · [🛠️ Development](#-development) · [📄 License](#-license) · [🙏 Credits](#-credits)
 
 </div>
 <p align="center">
   <img src="docs/screenshot.png" alt="Web player UI" width="760" />
-  <br/>
-  <img src="docs/screenshot-mobile.png" alt="Web player UI (mobile)" width="320" />
 </p>
 
 
@@ -45,10 +43,6 @@ Plays channels in the browser with **hls.js** and serves **signed proxy URLs** t
 - **Docker** — multi-stage build, non-root, read-only rootfs, healthcheck, resource-limit examples, optional Caddy automatic-HTTPS profile.
 
 </details>
-
-## 📑 Contents
-
-[✨ Highlights](#-highlights) · [🚀 Quick start](#-quick-start) · [📺 IPTV players](#-using-it-in-iptv-players) · [📥 Adding channels](#-adding-channels) · [⚙️ Configuration](#-configuration) · [🔗 Share panel](#-share-and-export-panel) · [🔌 API](#-api) · [🔒 Security](#-security-notes) · [🩺 Troubleshooting](#-troubleshooting) · [🛠️ Development](#-development) · [📄 License](#-license) · [🙏 Credits](#-credits)
 
 ## 🚀 Quick start
 
