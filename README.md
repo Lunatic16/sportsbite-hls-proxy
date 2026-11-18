@@ -11,11 +11,13 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](../../pulls)
 
-[✨ Highlights](#-highlights) · [🚀 Quick start](#-quick-start) · [📺 IPTV players](#-using-it-in-iptv-players) · [📥 Adding channels](#-adding-channels) · [⚙️ Configuration](#-configuration) · [🔗 Share panel](#-share-and-export-panel) · [🔌 API](#-api) · [🔒 Security](#-security-notes) · [🩺 Troubleshooting](#-troubleshooting) · [🛠️ Development](#-development) · [📄 License](#-license) · [🙏 Credits](#-credits)
+TypeScript · Node.js 20+ · Fastify · undici · hls.js
 
 </div>
 <p align="center">
   <img src="docs/screenshot.png" alt="Web player UI" width="760" />
+  <br/>
+  <img src="docs/screenshot-mobile.png" alt="Web player UI (mobile)" width="320" />
 </p>
 
 
@@ -24,7 +26,7 @@ Plays channels in the browser with **hls.js** and serves **signed proxy URLs** t
 ## ✨ Highlights
 
 - 📡 **Real HLS proxy** — master & media playlists, AES-128/SAMPLE-AES keys, fMP4 init segments, LL-HLS parts, subtitles. Segments are **streamed, never fully buffered**
-- 🧩 **Pluggable resolvers** — `static`, `m3u-source` and custom implementations; the built-in `sportsbite` resolver needs nothing but a Firefox User-Agent
+- 🧩 **Pluggable resolvers** — `static`, `m3u-source` and custom implementations; the built-in `sportsbite` resolver covers the `247-` family and the built-in `matchora` resolver covers the `xm-` family, both needing nothing but a browser User-Agent
 - 📋 **Dynamic M3U8 playlist** — `/playlist.m3u8` with `?group=`, `?search=`, `?format=m3u|m3u8`, `?download=1`; entries always point at *your* server, never at expiring upstream URLs
 - 🔗 **Share & export panel** — live/M3U8/direct URLs, expiry countdown + refresh, VLC & MPV commands, QR codes, per-channel rotating share tokens
 - 🥸 **timst unwrapping** — TikTok-CDN-disguised MPEG-TS detected and decoded per response, transparently
@@ -35,14 +37,18 @@ Plays channels in the browser with **hls.js** and serves **signed proxy URLs** t
 <summary>📖 <strong>Full feature tour</strong></summary>
 
 - **HLS proxy** — master playlists, media playlists, AES-128/SAMPLE-AES keys, fMP4 init segments, LL-HLS parts/preload-hints, subtitles. Relative URIs are resolved against the **final** (post-redirect) upstream URL. Segments are **streamed, never fully buffered** (decoded `timst` segments are the one deliberate exception — they must be reassembled).
-- **Pluggable resolvers** — `static` (fixed URL), `m3u-source` (looks the URL up in a source playlist at play time) and `custom` implementations. The built-in `sportsbite` resolver derives stream URLs from the channel id prefix (`247-` / `t247-` / `cv-`) and needs nothing but a Firefox User-Agent. Resolved URLs are cached until `expiresAt` and re-resolved automatically on upstream 403/404/410.
+- **Pluggable resolvers** — `static` (fixed URL), `m3u-source` (looks the URL up in a source playlist at play time) and `custom` implementations. The built-in `sportsbite` resolver maps `247-`/`t247-`/`cv-` prefixes to `https://sportsbite.org/{247,t247,cv}/<slug>`; the built-in `matchora` resolver resolves `xm-<digits>` channels through sportsbite's matchora embed chain. To add your own scraper/token resolver, copy the pattern in `src/resolvers/custom.example.ts`, register it in `src/resolvers/index.ts` via `registerResolver('name', impl)`, and return `{ url, headers, expiresAt }`.
 - **Dynamic M3U8 playlist** — `GET /playlist.m3u8` with `?group=`, `?search=`, `?format=m3u|m3u8`, `?download=1`. Entries always point at this server (never at expiring upstream URLs). The base URL comes from the request `Host` (or `X-Forwarded-*` with `TRUST_PROXY`, or `PUBLIC_BASE_URL`), so LAN clients get reachable addresses.
 - **Share & export panel** — per channel: a stable Live URL, the M3U8 stream URL, the raw Direct URL with an expiry countdown + refresh, shell-escaped VLC / MPV commands (POSIX, PowerShell, cmd.exe variants) with a Live/Direct source toggle, a QR code, and per-channel rotating share tokens.
-- **timst unwrapping** — TikTok-CDN-disguised TS (fake RIFF/JPEG/PNG header, or `TIKTIKPX` pixel-PNG with gzipped TS in the pixel data) is detected **per response** and decoded transparently. TikTok's CDN 403s any request carrying a `Referer`, so Referer/Origin are stripped for hosts matching `STRIP_REFERER_HOSTS`.
+- **timst unwrapping** — TikTok-CDN-disguised TS (fake RIFF/JPEG/PNG header, or `TIKTIKPX` pixel-PNG with gzipped TS in the pixel data) is detected **per response** and decoded transparently. TikTok's CDN 403s any request carrying a `Referer`, so Referer/Origin are stripped for hosts matching `STRIP_REFERER_HOSTS`. The `xm-` source adds a fourth disguise — a real PNG whose `payload-NNNN` `iTXt` chunks hold per-chunk zlib streams of base64-encoded TS — which is decoded the same way.
 - **Security** — SSRF guard (loopback / private / link-local / CGNAT / metadata ranges blocked unless `ALLOW_PRIVATE_UPSTREAMS=true`, IPv4-mapped IPv6 and NAT64 forms included, DNS validated at connect time), HMAC-signed proxy URLs that cannot be tampered with, per-channel share tokens that cannot open another channel or the admin API, sensitive headers never present in URLs, optional global `AUTH_TOKEN`, secrets redacted from logs.
 - **Docker** — multi-stage build, non-root, read-only rootfs, healthcheck, resource-limit examples, optional Caddy automatic-HTTPS profile.
 
 </details>
+
+## 📑 Contents
+
+[✨ Highlights](#-highlights) · [🚀 Quick start](#-quick-start) · [📺 IPTV players](#-using-it-in-iptv-players) · [📥 Adding channels](#-adding-channels) · [⚙️ Configuration](#-configuration) · [🔗 Share panel](#-share-and-export-panel) · [🔌 API](#-api) · [🔒 Security](#-security-notes) · [🩺 Troubleshooting](#-troubleshooting) · [🛠️ Development](#-development) · [📄 License](#-license) · [🙏 Credits](#-credits)
 
 ## 🚀 Quick start
 
@@ -135,7 +141,7 @@ npm run check -- --group=Sports --limit=20             # targeted sweep (a full 
 
 - `resolver: "static"` — `url` (+ optional `headers`: `User-Agent`, `Referer`, `Origin`, `Cookie`, `Authorization`, arbitrary). Headers are stored server-side and referenced by short ID in proxy URLs — they never appear in links or logs.
 - `resolver: "m3u-source"` — `options: { source: "./data/source.m3u" | URL, match: { tvgId } | { name } }`. The source is re-read (with a short cache) at resolve time, so regenerated upstream playlists keep working.
-- `resolver: "custom"` — `options.custom` names a registered implementation. The built-in `sportsbite` resolver maps `247-`/`t247-`/`cv-` prefixes to `https://sportsbite.org/{247,t247,cv}/<slug>`. To add your own scraper/token resolver, copy the pattern in `src/resolvers/custom.example.ts`, register it in `src/resolvers/index.ts` via `registerResolver('name', impl)`, and return `{ url, headers, expiresAt }`.
+- `resolver: "custom"` — `options.custom` names a registered implementation. The built-in `sportsbite` resolver maps `247-`/`t247-`/`cv-` prefixes to `https://sportsbite.org/{247,t247,cv}/<slug>`. The built-in `matchora` resolver handles the `xm-<digits>` family: it fetches the matchora embed page (which requires a `https://sportsbite.org/` Referer), extracts the `var PP="…"` pass token, calls `https://matchora.to/api/play/<id>?pp=<token>` (which rejects a sportsbite Referer) and returns the edge playlist URL it hands out together with its `expires_in` TTL. Stale tokens (`reason: "pass"`) are renewed from a fresh embed page automatically; a not-yet-served channel (`warming`/`capacity`) keeps returning 502 + `Retry-After` until the edge wakes up — the same "Going live…" wait the site's own player shows. To add your own scraper/token resolver, copy the pattern in `src/resolvers/custom.example.ts`, register it in `src/resolvers/index.ts` via `registerResolver('name', impl)`, and return `{ url, headers, expiresAt }`.
 
 </details>
 
@@ -229,8 +235,10 @@ Every channel gets a panel in the web UI with five copyable options.
 <summary>🩹 <strong>Common issues & fixes</strong></summary>
 
 - **CORS errors in the browser** — the proxy adds `Access-Control-Allow-Origin: *` and answers preflight on `/proxy/*` and API routes. If you see CORS errors, you are probably pointing hls.js at an **upstream URL directly** instead of the proxy/stream URL. Always use `/stream/<id>.m3u8` or the share links.
+- **"Nothing plays / every channel fails"** — the upstream restructured its catalog: the `t247-` (timst) family now answers 404 `not found`, `cv-` (cinevid) answers 410 `source removed`, and a new `xm-` family (majority of the catalog) needs the matchora chain. **Re-import the catalog** (`npm run import -- https://sportsbite.org/channels`) or replace your list (`--replace`) so dead channels are dropped and `xm-` channels are imported with the right resolver.
 - **403 from upstream on one channel** — usually an expired/absent header (check the channel's `headers`) or the origin fingerprinting. A stale-token 403/404 on segments is *expected* upstream behavior: players re-poll the playlist and the proxy re-issues fresh segment URLs on every refresh; the share/stream entry points re-resolve and retry once automatically.
 - **"Channel only works after opening it in the webapp once"** — one-shot players fail on a single upstream hiccup. The retry ladder lives in `/live` and `/stream`; make sure the player points at those, not a raw URL.
+- **`xm-` channel stuck on "warming"** — the matchora edge serves channels on demand: with no active viewers it answers 404 `warming` until it spins up (the site's player shows the same "Going live…" wait). The proxy keeps re-resolving per request; keep the player open and it usually starts within a few refresh cycles. Some 24/7 channels stay cold for hours when nobody watches.
 - **Expired tokens / stale links** — Live and M3U8 links keep working by design. Direct URLs expire with the upstream (watch the countdown, hit Refresh). Regenerating a token deliberately kills old links.
 - **cv-* channels / 503 upstream** — the `cinevid` upstream was dead at build time (HTTP 503 "cinevid streamUrl missing") and the origin also rate-limits aggressive sweeps. `npm run check` marks those offline; the proxy surfaces a clean 502 JSON. Channels are re-checked, not assumed.
 - **Docker unhealthy** — the healthcheck probes `http://127.0.0.1:$PORT/health` (IPv4-safe); verify `PORT` is set in `environment:` (the compose ports mapping alone does not set it), and check `docker compose logs`.
@@ -264,4 +272,4 @@ Released under the [MIT License](LICENSE).
 
 ## 🙏 Credits
 
-Stream derivation, token behavior, TikTok wrapper formats and header rules come from the project's upstream research notes (re-verified 2026-10-19 against sportsbite.org). This project is a self-hosted viewer for personal use — respect the upstream providers and your local laws.
+Stream derivation, token behavior, TikTok wrapper formats and header rules come from the project's upstream research notes (re-verified 2026-11-18 against sportsbite.org, incl. the new `xm-`/matchora source and its `payload-iTXt` segment disguise). This project is a self-hosted viewer for personal use — respect the upstream providers and your local laws.

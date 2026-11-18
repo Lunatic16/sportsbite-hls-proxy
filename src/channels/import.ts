@@ -39,6 +39,11 @@ interface ImportOptions {
   defaultGroup?: string;
 }
 
+/** Which custom resolver handles a catalog/M3U id prefix. */
+export function resolverForSportsbiteId(id: string): 'sportsbite' | 'matchora' {
+  return /^xm-\d+/i.test(id) ? 'matchora' : 'sportsbite';
+}
+
 /** Sanitize a channel name/attr: strip control chars + quotes. */
 export function sanitizeText(value: string | undefined, fallback = ''): string {
   if (!value) return fallback;
@@ -68,7 +73,7 @@ export function channelsFromSportsbiteCatalog(raw: string): Channel[] {
       logo: entry.logo_url ?? entry.image,
       tvgId: entry.id,
       resolver: 'custom',
-      options: { custom: 'sportsbite', sourceId: entry.id },
+      options: { custom: resolverForSportsbiteId(entry.id), sourceId: entry.id },
       status: entry.status === 'online' ? 'unknown' : 'offline',
     });
   }
@@ -90,10 +95,18 @@ export function channelsFromM3u(
     seen.add(id);
 
     const url = entry.url;
-    const isSportsbite = /^https?:\/\/[^/]*sportsbite\.org\/(247|t247|cv)\//i.test(url);
+    const isSportsbite = /^https?:\/\/[^/]*sportsbite\.org\/(247|t247|cv)\//i.test(url)
+      || /^https?:\/\/[^/]*sportsbite\.org\/xm-embed\/embed\//i.test(url);
     if (isSportsbite) {
-      const m = url.match(/\/(247|t247|cv)\/([^/?#]+)/i);
-      const catId = m ? `${m[1] === 't247' ? 't247' : m[1] === 'cv' ? 'cv' : '247'}-${m[2]}` : '';
+      const m247 = url.match(/\/(247|t247|cv)\/([^/?#]+)/i);
+      const mxm = url.match(/\/xm-embed\/embed\/([^/?#]+)/i);
+      // xm-embed pages carry the numeric matchora id; 247-embed pages are only
+      // wrappers around the same /247/<slug> URL the sportsbite resolver builds.
+      const catId = mxm
+        ? `xm-${mxm[1]}`
+        : m247
+          ? `${m247[1].toLowerCase()}-${m247[2]}`
+          : '';
       out.push({
         id,
         name,
@@ -101,7 +114,9 @@ export function channelsFromM3u(
         logo: entry.attrs['tvg-logo'] || undefined,
         tvgId: entry.attrs['tvg-id'] || id,
         resolver: 'custom',
-        options: { custom: 'sportsbite', ...(catId ? { sourceId: catId } : {}) },
+        options: catId
+          ? { custom: resolverForSportsbiteId(catId), sourceId: catId }
+          : { custom: 'sportsbite' },
       });
       continue;
     }

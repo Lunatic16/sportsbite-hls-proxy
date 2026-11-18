@@ -83,12 +83,24 @@ async function fetchPlaylistUncached(
     });
 
     if (res.status !== 200) {
-      await res.body.dump().catch(() => {});
+      // Read a small slice so upstream JSON errors (e.g. {"error":"not found",
+      // "status":"offline"} from sportsbite.org) surface as actionable text.
+      let errDetail: string | undefined;
+      try {
+        const errBody = await readBodyWithCap(res.body, 16 * 1024, options.signal);
+        errDetail = tryJsonError(errBody.toString('utf8'), res.headers['content-type'] ?? '');
+        if (!errDetail && res.status === 404 && /^\s*warming\s*$/i.test(errBody.toString('utf8'))) {
+          errDetail = 'upstream edge is warming up this channel — retry shortly';
+        }
+      } catch {
+        await res.body.dump().catch(() => {});
+      }
+      const detail = errDetail ? ` (${errDetail})` : '';
       return {
         ok: false,
         status: 502,
         upstreamStatus: res.status,
-        error: `upstream playlist returned HTTP ${res.status}`,
+        error: `upstream playlist returned HTTP ${res.status}${detail}`,
       };
     }
 

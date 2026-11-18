@@ -1,9 +1,10 @@
-import { deflateSync, gzipSync } from 'node:zlib';
+import { deflateSync, gzipSync, inflateSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
 import {
   detectSegmentKind,
   stripFakeImageHeader,
   decodePixelPng,
+  decodeItextPng,
   decodeSegment,
 } from '../src/hls/unwrap.js';
 
@@ -137,6 +138,91 @@ describe('decodePixelPng (TIKTIKPX)', () => {
     // find IDAT, inflate, flip byte 0, re-deflate — simpler: trust decodeSegment fallback below.
     void corrupted;
     expect(() => decodePixelPng(Buffer.concat([png.subarray(0, 8), png.subarray(8)]))).not.toThrow();
+  });
+});
+
+describe('decodeItextPng (payload-iTXt chunks — matchora xm- source)', () => {
+  /** Build a PNG that hides base64(TS) in zlib-compressed `payload-NNNN` iTXt chunks,
+   *  byte-for-byte the layout observed on the live matchora edge (2026-11-18). */
+  function makeItextPng(ts: Buffer): Buffer {
+    const b64 = ts.toString('base64');
+    // split the base64 text across chunks of ~12KB, zlib per chunk
+    const parts: Buffer[] = [];
+    const CHUNK = 12_000;
+    for (let i = 0, n = 0; i < b64.length; i += CHUNK, n++) {
+      const keyword = Buffer.from(`payload-${String(n + 1).padStart(4, '0')}`, 'ascii');
+      const meta = Buffer.from([0x01, 0x00]); // compression flag 1, method 0 (zlib)
+      const text = deflateSync(b64.slice(i, i + CHUNK));
+      // keyword\0 + flag + method + \0 (empty language) + \0 (empty translated) + text
+      parts.push(Buffer.concat([
+        keyword,
+        Buffer.from([0x00]),
+        meta,
+        Buffer.from([0x00]),
+        Buffer.from([0x00]),
+        text,
+      ]));
+    }
+    const ihdr = Buffer.alloc(13);
+    ihdr.writeUInt32BE(64, 0);
+    ihdr.writeUInt32BE(64, 4);
+    ihdr[8] = 8;
+    ihdr[9] = 6;
+    const sig = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    return Buffer.concat([
+      sig,
+      pngChunk('IHDR', ihdr),
+      pngChunk('IDAT', deflateSync(Buffer.alloc((64 * 4 + 1) * 64))),
+      ...parts.map((d) => pngChunk('iTXt', d)),
+      pngChunk('IEND', Buffer.alloc(0)),
+    ]);
+  }
+
+  it('decodes a payload-iTXt PNG back to the TS payload', () => {
+    const ts = makeTsPackets(40);
+    const png = makeItextPng(ts);
+    expect(detectSegmentKind(png.subarray(0, 64))).toBe('image-wrapped');
+    const decoded = decodeItextPng(png);
+    expect(decoded.equals(ts)).toBe(true);
+  });
+
+  it('decodeSegment prefers the iTXt decoder over the pixel-PNG decoder', () => {
+    const ts = makeTsPackets(40);
+    expect(decodeSegment(makeItextPng(ts)).equals(ts)).toBe(true);
+  });
+
+  it('decodes a multi-megabyte payload (no regex backtracking on huge strings)', () => {
+    // ~10 MB of base64 text: a /\s+/g strip here used to blow V8's call stack.
+    const ts = makeTsPackets(55_000);
+    const png = makeItextPng(ts);
+    const decoded = decodeSegment(png);
+    expect(decoded.length).toBe(ts.length);
+    expect(decoded[0]).toBe(0x47);
+    expect(decoded[188]).toBe(0x47);
+  });
+
+  it('rejects a PNG whose payload chunks do not decode to TS', () => {
+    const garbage = makeItextPng(Buffer.alloc(1000, 0x41)); // no 0x47 sync
+    expect(() => decodeItextPng(garbage)).toThrow(/did not decode to MPEG-TS/);
+  });
+
+  it('rejects a plain PNG without payload chunks', () => {
+    const ts = makeTsPackets(5);
+    const png = makeTiktikpxPng(ts);
+    expect(() => decodeItextPng(png)).toThrow(/no payload iTXt chunks/);
+  });
+
+  it('round-trips through inflateSync only when chunks are well-formed', () => {
+    // sanity on the test builder itself: the zlib text must inflate cleanly
+    const ts = makeTsPackets(40);
+    const png = makeItextPng(ts);
+    // find first iTXt chunk text and inflate it
+    const idx = png.indexOf(Buffer.from('iTXt', 'ascii'));
+    expect(idx).toBeGreaterThan(0);
+    const len = png.readUInt32BE(idx - 4);
+    const chunk = png.subarray(idx + 4, idx + 4 + len);
+    const q = chunk.indexOf(0, chunk.indexOf(0, chunk.indexOf(0) + 3) + 1) + 1;
+    expect(() => inflateSync(chunk.subarray(q))).not.toThrow();
   });
 });
 

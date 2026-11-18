@@ -8,6 +8,10 @@
  *   2. fake image header — PNG/JPEG/RIFF magic + raw TS (scan for sync)
  *   3. pixel PNG         — real PNG whose pixel data holds
  *                          b'TIKTIKPX' + u32 BE length + gzip(TS)
+ *   4. iTXt payload PNG  — real PNG whose `iTXt` chunks (`payload-NNNN`) hold
+ *                          per-chunk zlib streams; concatenated output is
+ *                          base64 ASCII whose decoding is MPEG-TS
+ *                          (matchora / xm- source, verified 2026-11-18)
  */
 import { gunzipSync, inflateSync } from 'node:zlib';
 
@@ -134,9 +138,67 @@ export function decodePixelPng(seg: Buffer): Buffer {
   return gunzipSync(out.subarray(12, 12 + len));
 }
 
+/**
+ * Newest disguise (matchora / xm- source): a real PNG whose payload hides in
+ * `iTXt` text chunks — keyword `payload-NNNN`, compression flag 1, zlib text.
+ * The concatenated zlib output is base64 ASCII; its decoding is MPEG-TS.
+ */
+export function decodeItextPng(seg: Buffer): Buffer {
+  const sig = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  if (!seg.subarray(0, 8).equals(sig)) throw new Error('not a PNG');
+  const parts: Buffer[] = [];
+  let p = 8;
+  while (p + 12 <= seg.length) {
+    const len = seg.readUInt32BE(p);
+    const type = seg.subarray(p + 4, p + 8).toString('ascii');
+    if (type === 'IEND') break;
+    if (type === 'iTXt' && len > 8) {
+      const chunk = seg.subarray(p + 8, p + 8 + len);
+      const kwEnd = chunk.indexOf(0);
+      if (kwEnd > 0) {
+        const keyword = chunk.subarray(0, kwEnd).toString('ascii');
+        const compressionFlag = chunk[kwEnd + 1];
+        // Only payload- chunks; flag 1 = text is zlib/deflate compressed.
+        if (/^payload-\d+$/i.test(keyword) && compressionFlag === 1) {
+          // keyword\0 flag method language\0 translated\0 text — bail out if
+          // either metadata terminator is missing (malformed iTXt).
+          let q = chunk.indexOf(0, kwEnd + 3);
+          if (q < 0) continue;
+          q = chunk.indexOf(0, q + 1);
+          if (q < 0) continue;
+          try {
+            parts.push(inflateSync(chunk.subarray(q + 1)));
+          } catch {
+            /* not zlib — skip chunk */
+          }
+        }
+      }
+    }
+    p += 12 + len;
+  }
+  if (parts.length === 0) throw new Error('no payload iTXt chunks');
+  // NOTE: no regex whitespace-strip here — V8 blows its call stack running
+  // /\s+/g over multi-megabyte payloads, and Buffer.from(.., 'base64') skips
+  // whitespace on its own.
+  const text = Buffer.concat(parts).toString('latin1');
+  if (!/^[A-Za-z0-9+/=\s]{16,}/.test(text.slice(0, 512))) {
+    throw new Error('iTXt payload is not base64');
+  }
+  const ts = Buffer.from(text, 'base64');
+  if (ts.length < 188 || ts[0] !== 0x47 || ts[188] !== 0x47) {
+    throw new Error('iTXt payload did not decode to MPEG-TS');
+  }
+  return ts;
+}
+
 /** Decode any wrapped segment; returns input unchanged if it is already raw. */
 export function decodeSegment(seg: Buffer): Buffer {
   if (seg.length > 4 && seg.subarray(0, 4).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47]))) {
+    try {
+      return decodeItextPng(seg);
+    } catch {
+      // fall through to the older PNG disguise
+    }
     try {
       return decodePixelPng(seg);
     } catch {

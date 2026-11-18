@@ -13,12 +13,14 @@ import { getLogger } from '../util/logger.js';
 import { staticResolver } from './static.js';
 import { m3uSourceResolver } from './m3uSource.js';
 import { sportsbiteResolver } from './sportsbite.js';
+import { matchoraResolver } from './matchora.js';
 import type { Resolver } from './types.js';
 
 export const registry = new Map<string, Resolver>([
   ['static', staticResolver],
   ['m3u-source', m3uSourceResolver],
   ['sportsbite', sportsbiteResolver],
+  ['matchora', matchoraResolver],
 ]);
 
 /** Register your own resolver implementation at startup (see custom.example.ts). */
