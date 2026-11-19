@@ -1,36 +1,75 @@
+# Production compose file — the DEFAULT. Plain `docker compose up -d` runs this.
+# Development runs from the host (bun install && bun run dev); a containerized
+# dev mode lives in compose.dev.yml and must be started explicitly with
+#   docker compose -f compose.dev.yml up -d
+# (the old docker-compose.override.yml auto-loaded dev mode on EVERY plain
+#  `docker compose up` — a classic "why is production running tsx watch?" trap)
+
 services:
   iptv-proxy:
     build: .
-    image: sportsbite-hls-proxy:latest
-    container_name: sportsbite-hls-proxy
+    image: iptv-stream-proxy:latest
+    container_name: iptv-stream-proxy
     restart: unless-stopped
-    init: true
     ports:
-      - "${PORT:-3009}:${PORT:-3000}"
-    env_file:
-      - path: .env
-        required: false
+      # Host port only. The container always listens on 3000 internally,
+      # so the app and the port mapping can never drift apart.
+      - "${HOST_PORT:-3009}:3000"
     environment:
       - NODE_ENV=production
-      # ${PORT} in the ports mapping does NOT set PORT inside the container —
-      # it must be set here explicitly or app and mapping listen on different ports.
-      - PORT=${PORT:-3000}
-      - TZ=${TZ:-America/Cayman}
+      - PORT=3000
+      # Compose interpolates ${VAR:-default} from the .env file next to this
+      # file automatically — works on every Compose version (the old
+      # `env_file: [{path, required}]` syntax needed Compose ≥ 2.24).
+      # Empty string = "not configured" for the app.
+      - AUTH_TOKEN=${AUTH_TOKEN:-}
+      - PROXY_SECRET=${PROXY_SECRET:-}
+      - PUBLIC_BASE_URL=${PUBLIC_BASE_URL:-}
+      - SHARE_TOKEN_REQUIRED=${SHARE_TOKEN_REQUIRED:-false}
+      - SHARE_TOKEN_TTL=${SHARE_TOKEN_TTL:-0}
+      # Set to true when running behind the caddy profile below (or any
+      # reverse proxy) so generated playlist URLs use the forwarded proto/host.
+      - TRUST_PROXY=${TRUST_PROXY:-false}
+      - ALLOW_PRIVATE_UPSTREAMS=${ALLOW_PRIVATE_UPSTREAMS:-false}
+      - ALLOW_DEAD_SOURCES=${ALLOW_DEAD_SOURCES:-false}
+      # Startup auto-import of the channel list — this is what loads the
+      # sportsbite catalog (~360 channels) without any manual import step.
+      # once = first start / URL change; always = every start; off = disable.
+      - CHANNELS_IMPORT_URL=${CHANNELS_IMPORT_URL:-https://sportsbite.org/channels}
+      - CHANNELS_IMPORT_MODE=${CHANNELS_IMPORT_MODE:-once}
+      - CHANNELS_IMPORT_REPLACE=${CHANNELS_IMPORT_REPLACE:-auto}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - CHECK_CONCURRENCY=${CHECK_CONCURRENCY:-4}
+      - TZ=${TZ:-UTC}
+      # The entrypoint fixes ./data ownership on startup (no manual chown
+      # needed) and then runs the server as this uid/gid. 1000 = the image's
+      # built-in `node` user; change on hosts where your user differs (NAS).
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
     volumes:
-      - ./data:/app/data              # channels.json, share tokens, secret persisted here
+      - ./data:/app/data              # channels.json, tokens.json, secret persist here
       # Optional: bind-mount your own channel list over the generated one
       # - ./channels.json:/app/data/channels.json:ro
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:${PORT:-3000}/health"]
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 10s
+      start_period: 15s
     read_only: true
     tmpfs:
       - /tmp
     cap_drop:
       - ALL
+    # Exactly the capabilities the entrypoint's one-time ownership fix needs;
+    # it drops everything again by execing the server as an unprivileged user:
+    #   CHOWN + DAC_OVERRIDE — chown -R / mkdir on the data dir (root phase)
+    #   SETUID + SETGID — su-exec dropping root -> $PUID:$PGID
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - SETUID
+      - SETGID
     security_opt:
       - no-new-privileges:true
     logging:
@@ -38,20 +77,13 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    # ── optional resource limits ──────────────────────────────────────────
-    # deploy:
-    #   resources:
-    #     limits:
-    #       memory: 1g
-    #       cpus: "2.0"
 
   # Optional automatic-HTTPS reverse proxy:
-  #   docker compose --profile proxy up -d
-  # Set SITE_ADDRESS (e.g. tv.example.com) and PUBLIC_BASE_URL accordingly.
+  #   TRUST_PROXY=true SITE_ADDRESS=tv.example.com docker compose --profile proxy up -d
   caddy:
     image: caddy:2-alpine
     profiles: ["proxy"]
-    container_name: sportsbite-caddy
+    container_name: iptv-caddy
     restart: unless-stopped
     depends_on:
       - iptv-proxy
@@ -61,7 +93,7 @@ services:
     environment:
       - SITE_ADDRESS=${SITE_ADDRESS:-:8080}
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
 

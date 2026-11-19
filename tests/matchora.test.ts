@@ -3,10 +3,10 @@ import {
   channelsFromSportsbiteCatalog,
   channelsFromM3u,
   resolverForSportsbiteId,
-} from '../src/channels/import.js';
-import { matchoraChannelId, parseMatchoraEmbedPp } from '../src/resolvers/matchora.js';
-import { deriveSportsbiteStreamUrl } from '../src/resolvers/sportsbite.js';
-import type { Channel } from '../src/channels/types.js';
+} from '../src/server/channels/import';
+import { matchoraChannelId, parseMatchoraEmbedPp } from '../src/server/resolvers/matchora';
+import { deriveSportsbiteStreamUrl } from '../src/server/resolvers/sportsbite';
+import type { Channel } from '../src/server/channels/types';
 
 describe('sportsbite derivation (xm family)', () => {
   it('maps the xm- prefix to the embed page URL', () => {

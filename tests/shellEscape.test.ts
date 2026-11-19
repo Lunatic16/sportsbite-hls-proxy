@@ -6,7 +6,7 @@ import {
   shellQuote,
   buildVlcCommand,
   buildMpvCommand,
-} from '../src/util/shellEscape.js';
+} from '../src/server/shellEscape';
 
 describe('shell quoting', () => {
   it('posixQuote survives single quotes, $, backticks, spaces', () => {

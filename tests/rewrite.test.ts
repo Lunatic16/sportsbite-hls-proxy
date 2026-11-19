@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { rewritePlaylist, isMasterPlaylist, isVodPlaylist } from '../src/hls/parser.js';
-import { decodeUrlForProxy, verifyProxyUrl } from '../src/net/sign.js';
+import { rewritePlaylist, isMasterPlaylist, isVodPlaylist } from '../src/server/parser';
+import { decodeUrlForProxy, verifyProxyUrl } from '../src/server/sign';
 
 const ORIGIN = 'http://proxy.local:3000';
 

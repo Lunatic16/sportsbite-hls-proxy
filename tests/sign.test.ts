@@ -8,8 +8,8 @@ import {
   verifyProxyUrl,
   headersIdFor,
   shareTokens,
-} from '../src/net/sign.js';
-import { getChannelSecret, rotateChannelSecret } from '../src/net/shareStore.js';
+} from '../src/server/sign';
+import { getChannelSecret, rotateChannelSecret } from '../src/server/shareStore';
 
 const URL_A = 'https://ds169.bluetier.top/CH/tracks-v1a1/2026/10/19/19/46/57-07800.ts?token=abc.123';
 

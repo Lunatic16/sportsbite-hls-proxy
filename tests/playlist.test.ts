@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { buildM3u, escapeM3uAttr, filterChannels } from '../src/routes/playlist.js';
-import type { Channel } from '../src/channels/types.js';
+import { buildM3u, escapeM3uAttr, filterChannels } from '../src/server/m3u';
+import type { Channel } from '../src/server/channels/types';
 
 const BASE = 'http://192.168.1.50:3000';
 

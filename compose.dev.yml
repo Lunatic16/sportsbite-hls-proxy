@@ -1,0 +1,32 @@
+# Containerized DEVELOPMENT — start explicitly, it is never auto-loaded:
+#   docker compose -f compose.dev.yml up -d
+# For day-to-day work prefer running on the host:
+#   bun install && bun run dev
+services:
+  iptv-proxy:
+    build: .
+    container_name: iptv-stream-proxy-dev
+    restart: unless-stopped
+    command: npm run dev
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - LOG_LEVEL=debug
+      - DATA_DIR=/app/data
+      - NEXT_DIST_DIR=/app/.next-dev   # keep dev build artifacts out of the standalone output
+    ports:
+      - "${HOST_PORT:-3000}:3000"
+    volumes:
+      - ./src:/app/src
+      - ./public:/app/public
+      - ./scripts:/app/scripts
+      - ./tests:/app/tests
+      - ./data:/app/data
+      # Persist the dev build cache between restarts (bind mounts are slow to watch —
+      # if HMR feels sluggish on macOS/Windows, run `bun run dev` on the host instead).
+      - iptv-dev-next:/app/.next-dev
+    read_only: false
+    cap_drop: []
+
+volumes:
+  iptv-dev-next:

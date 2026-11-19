@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isPrivateIp, validateUpstreamUrl } from '../src/net/ssrf.js';
+import { isPrivateIp, validateUpstreamUrl } from '../src/server/ssrf';
 
 describe('isPrivateIp — IPv4', () => {
   const privateCases = [

@@ -3,9 +3,10 @@ import {
   channelsFromSportsbiteCatalog,
   channelsFromM3u,
   sanitizeText,
-} from '../src/channels/import.js';
-import { slugify } from '../src/channels/store.js';
-import { deriveSportsbiteStreamUrl } from '../src/resolvers/sportsbite.js';
+} from '../src/server/channels/import';
+import { resetConfigForTests } from '../src/server/config';
+import { slugify } from '../src/server/channels/store';
+import { deriveSportsbiteStreamUrl } from '../src/server/resolvers/sportsbite';
 
 describe('slugify', () => {
   it('slugs names and ids', () => {
@@ -48,9 +49,22 @@ describe('channelsFromSportsbiteCatalog', () => {
     ],
   });
 
-  it('imports online+playable channels with known prefixes only', () => {
+  it('imports online+playable channels with known prefixes, skipping dead upstream families', () => {
+    // t247-/cv- upstreams are dead (404/410) — skipped unless ALLOW_DEAD_SOURCES=true.
     const out = channelsFromSportsbiteCatalog(catalog);
-    expect(out.map((c) => c.id).sort()).toEqual(['247-beinsportsus', 'cv-ae-usa', 't247-abc']);
+    expect(out.map((c) => c.id).sort()).toEqual(['247-beinsportsus']);
+  });
+
+  it('imports dead families again when ALLOW_DEAD_SOURCES=true', () => {
+    process.env['ALLOW_DEAD_SOURCES'] = 'true';
+    resetConfigForTests();
+    try {
+      const out = channelsFromSportsbiteCatalog(catalog);
+      expect(out.map((c) => c.id).sort()).toEqual(['247-beinsportsus', 'cv-ae-usa', 't247-abc']);
+    } finally {
+      delete process.env['ALLOW_DEAD_SOURCES'];
+      resetConfigForTests();
+    }
   });
 
   it('marks them as custom sportsbite resolver channels with group + logo + tvgId', () => {

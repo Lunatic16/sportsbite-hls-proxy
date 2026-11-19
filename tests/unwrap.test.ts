@@ -6,7 +6,7 @@ import {
   decodePixelPng,
   decodeItextPng,
   decodeSegment,
-} from '../src/hls/unwrap.js';
+} from '../src/server/unwrap';
 
 const CRC_TABLE = (() => {
   const t = new Uint32Array(256);
